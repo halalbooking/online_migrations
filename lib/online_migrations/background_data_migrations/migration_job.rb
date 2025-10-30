@@ -37,6 +37,13 @@ module OnlineMigrations
 
       TICKER_INTERVAL = 5 # seconds
 
+      # Use around_perform to ensure shard connection is established for the entire job
+      around_perform do |_job, block|
+        migration_id = arguments.first
+        migration = Migration.find(migration_id)
+        migration.on_shard_if_present(&block)
+      end
+
       # Register callbacks using job-iteration's callback system
       on_start do
         @migration.start if @migration
@@ -71,57 +78,55 @@ module OnlineMigrations
         @migration = BackgroundDataMigrations::Migration.find(migration_id)
         cursor ||= @migration.cursor
 
-        @migration.on_shard_if_present do
-          @data_migration = @migration.data_migration
+        @data_migration = @migration.data_migration
 
-          # Call after_resume if we're resuming (cursor is not nil/empty)
-          @data_migration.after_resume if cursor.present?
+        # Call after_resume if we're resuming (cursor is not nil/empty)
+        @data_migration.after_resume if cursor.present?
 
-          collection_enum = @data_migration.build_enumerator(cursor: cursor)
+        collection_enum = @data_migration.build_enumerator(cursor: cursor)
 
-          if collection_enum
-            if !collection_enum.is_a?(Enumerator)
+        if collection_enum
+          if !collection_enum.is_a?(Enumerator)
+            raise ArgumentError, <<~MSG.squish
+              #{@data_migration.class.name}#build_enumerator must return an Enumerator,
+              got #{collection_enum.class.name}.
+            MSG
+          end
+
+          # Return the enumerator directly - job-iteration will wrap it
+          collection_enum
+        else
+          collection = @data_migration.collection
+
+          case collection
+          when ActiveRecord::Relation
+            enumerator_builder.build_active_record_enumerator_on_records(
+              collection,
+              cursor: cursor,
+              batch_size: @data_migration.class.active_record_enumerator_batch_size || 100
+            )
+          when ActiveRecord::Batches::BatchEnumerator
+            if collection.start || collection.finish
               raise ArgumentError, <<~MSG.squish
-                #{@data_migration.class.name}#build_enumerator must return an Enumerator,
-                got #{collection_enum.class.name}.
+                #{@data_migration.class.name}#collection does not support
+                a batch enumerator with the "start" or "finish" options.
               MSG
             end
 
-            # Return the enumerator directly - job-iteration will wrap it
-            collection_enum
+            # NOTE: job-iteration doesn't support use_ranges parameter
+            # It always uses ranges-based iteration (equivalent to use_ranges: true)
+            enumerator_builder.build_active_record_enumerator_on_batch_relations(
+              collection.relation,
+              cursor: cursor,
+              batch_size: collection.batch_size
+            )
+          when Array
+            enumerator_builder.build_array_enumerator(collection, cursor: cursor)
           else
-            collection = @data_migration.collection
-
-            case collection
-            when ActiveRecord::Relation
-              enumerator_builder.build_active_record_enumerator_on_records(
-                collection,
-                cursor: cursor,
-                batch_size: @data_migration.class.active_record_enumerator_batch_size || 100
-              )
-            when ActiveRecord::Batches::BatchEnumerator
-              if collection.start || collection.finish
-                raise ArgumentError, <<~MSG.squish
-                  #{@data_migration.class.name}#collection does not support
-                  a batch enumerator with the "start" or "finish" options.
-                MSG
-              end
-
-              # NOTE: job-iteration doesn't support use_ranges parameter
-              # It always uses ranges-based iteration (equivalent to use_ranges: true)
-              enumerator_builder.build_active_record_enumerator_on_batch_relations(
-                collection.relation,
-                cursor: cursor,
-                batch_size: collection.batch_size
-              )
-            when Array
-              enumerator_builder.build_array_enumerator(collection, cursor: cursor)
-            else
-              raise ArgumentError, <<~MSG.squish
-                #{@data_migration.class.name}#collection must be either an ActiveRecord::Relation,
-                ActiveRecord::Batches::BatchEnumerator, or Array.
-              MSG
-            end
+            raise ArgumentError, <<~MSG.squish
+              #{@data_migration.class.name}#collection must be either an ActiveRecord::Relation,
+              ActiveRecord::Batches::BatchEnumerator, or Array.
+            MSG
           end
         end
       end
@@ -161,12 +166,6 @@ module OnlineMigrations
       end
 
       private
-        # It would be better to have a callback like `around_perform`,
-        # but currently this is the way to make job iteration shard aware.
-        def iterate_with_enumerator(enumerator, arguments)
-          @migration.on_shard_if_present { super }
-        end
-
         THROTTLE_CHECK_INTERVAL = 5 # seconds
         private_constant :THROTTLE_CHECK_INTERVAL
 
