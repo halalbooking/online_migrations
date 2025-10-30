@@ -39,9 +39,12 @@ end
 
 if ENV["VERBOSE"]
   ActiveRecord::Base.logger = ActiveSupport::Logger.new($stdout)
+  ActiveJob::Base.logger = ActiveSupport::Logger.new($stdout)
 else
-  ActiveRecord::Base.logger = ActiveSupport::Logger.new("debug.log", 1, 100 * 1024 * 1024) # 100 mb
+  logger = ActiveSupport::Logger.new("debug.log", 1, 100 * 1024 * 1024) # 100 mb
+  ActiveRecord::Base.logger = logger
   ActiveRecord::Migration.verbose = false
+  ActiveJob::Base.logger = logger
 end
 
 # Disallow ActiveSupport deprecations sprouting from this gem

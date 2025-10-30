@@ -157,6 +157,7 @@ end
 
 Minitest::Test.class_eval do
   include MinitestHelpers
+  include ActiveJob::TestHelper
 
   alias_method :assert_not, :refute
   alias_method :assert_not_equal, :refute_equal
@@ -164,10 +165,4 @@ Minitest::Test.class_eval do
   alias_method :assert_no_match, :refute_match
   alias_method :assert_not_nil, :refute_nil
   alias_method :assert_not_empty, :refute_empty
-
-  def after_teardown
-    ActiveJob::Base.queue_adapter.enqueued_jobs.clear
-    ActiveJob::Base.queue_adapter.performed_jobs.clear
-    super
-  end
 end
