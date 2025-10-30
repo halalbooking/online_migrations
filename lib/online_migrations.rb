@@ -25,6 +25,7 @@ module OnlineMigrations
   extend ActiveSupport::Autoload
 
   autoload :ApplicationRecord
+  autoload :ApplicationJob
   autoload :BatchIterator
   autoload :VerboseSqlLogs
   autoload :ForeignKeysCollector

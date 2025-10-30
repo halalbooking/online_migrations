@@ -120,7 +120,7 @@ OnlineMigrations.configure do |config|
   #   end
   # end
 
-  # The name of the sidekiq job to be used to perform data migrations.
+  # The name of the ActiveJob job to be used to perform data migrations.
   config.background_data_migrations.job = "OnlineMigrations::BackgroundDataMigrations::MigrationJob"
 
   # ==> Background schema migrations configuration

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-gem "sidekiq", ">= 7.3.3"
-require "sidekiq"
+gem "job-iteration", ">= 1.4"
+require "job-iteration"
 
 module OnlineMigrations
   # Base class that is inherited by the host application's data migration classes.
@@ -65,7 +65,7 @@ module OnlineMigrations
 
     # A hook to override that will be called each time the migration is interrupted.
     #
-    # This can be due to interruption or sidekiq stopping.
+    # This can be due to interruption or the job queue stopping.
     #
     def after_stop
     end

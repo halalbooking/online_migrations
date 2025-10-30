@@ -7,7 +7,8 @@ gemspec
 
 gem "minitest", "~> 5.0"
 gem "rake", "~> 12.0"
-gem "sidekiq", "7.3.3"
+gem "job-iteration", "~> 1.4"
+gem "sidekiq", "7.3.3" # Keep for testing ActiveJob with Sidekiq adapter
 gem "rubocop", "< 2"
 gem "rubocop-minitest"
 gem "rubocop-disable_syntax"

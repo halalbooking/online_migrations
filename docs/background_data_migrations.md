@@ -8,7 +8,7 @@ Background data migrations should be used to perform data migrations on large ta
 
 ## Requirements
 
-Data migrations uses [sidekiq iterable job](https://github.com/sidekiq/sidekiq/wiki/Iteration) under the hood and so requires `sidekiq` 7.3.3+ to work.
+Data migrations use [job-iteration](https://github.com/Shopify/job-iteration) gem under the hood and so require `job-iteration` 1.4+ to work. Since job-iteration works with ActiveJob, you can use any ActiveJob adapter (Sidekiq, Resque, Delayed Job, GoodJob, SolidQueue, etc.).
 
 ## Installation
 
@@ -396,9 +396,9 @@ config.background_data_migrations.migrations_module = "DataMigrationsModule"
 
 If no value is specified, it will default to `"OnlineMigrations::DataMigrations"`.
 
-### Customizing the underlying sidekiq job class
+### Customizing the underlying ActiveJob job class
 
-A custom sidekiq job class can be configured to define a job class for your data migrations to use.
+A custom ActiveJob job class can be configured to define a job class for your data migrations to use.
 
 ```ruby
 # config/initializers/online_migrations.rb
@@ -409,8 +409,8 @@ config.background_data_migrations.job = "CustomMigrationJob"
 ```ruby
 # app/jobs/custom_migration_job.rb
 
-class CustomMigrationJob < OnlineMigrations::DataMigrations::MigrationJob
-  sidekiq_options queue: "low"
+class CustomMigrationJob < OnlineMigrations::BackgroundDataMigrations::MigrationJob
+  queue_as :low
 end
 ```
 

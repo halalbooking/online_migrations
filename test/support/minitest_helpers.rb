@@ -166,7 +166,8 @@ Minitest::Test.class_eval do
   alias_method :assert_not_empty, :refute_empty
 
   def after_teardown
-    Sidekiq::Worker.clear_all
+    ActiveJob::Base.queue_adapter.enqueued_jobs.clear
+    ActiveJob::Base.queue_adapter.performed_jobs.clear
     super
   end
 end

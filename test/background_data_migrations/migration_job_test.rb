@@ -32,27 +32,27 @@ module BackgroundDataMigrations
     def test_raises_when_collection_method_is_missing
       m = create_migration("NoCollectionMigration")
       assert_raises_with_message(NotImplementedError, /must implement a 'collection' method/) do
-        MigrationJob.perform_inline(m.id)
+        MigrationJob.perform_now(m.id)
       end
     end
 
     def test_raises_when_process_method_is_missing
       m = create_migration("NoProcessMigration")
       assert_raises_with_message(NotImplementedError, /must implement a 'process' method/) do
-        MigrationJob.perform_inline(m.id)
+        MigrationJob.perform_now(m.id)
       end
     end
 
     def test_uses_build_enumerator_method_if_present
       m = create_migration("CustomEnumeratorMigration")
-      MigrationJob.perform_inline(m.id)
+      MigrationJob.perform_now(m.id)
       assert_equal [1, 2, 3], CustomEnumeratorMigration.processed_objects
     end
 
     def test_raises_when_build_enumerator_method_returns_non_enumerator
       m = create_migration("NonEnumeratorMigration")
       assert_raises_with_message(ArgumentError, /#build_enumerator must return an Enumerator/) do
-        MigrationJob.perform_inline(m.id)
+        MigrationJob.perform_now(m.id)
       end
     end
 
@@ -60,7 +60,7 @@ module BackgroundDataMigrations
       user1 = User.create!
       user2 = User.create!
       m = create_migration("RelationCollectionMigration")
-      MigrationJob.perform_inline(m.id)
+      MigrationJob.perform_now(m.id)
 
       assert_equal [user1, user2], RelationCollectionMigration.processed_objects
     end
@@ -69,7 +69,7 @@ module BackgroundDataMigrations
       user1 = User.create!
       user2 = User.create!
       m = create_migration("BatchesCollectionMigration")
-      MigrationJob.perform_inline(m.id)
+      MigrationJob.perform_now(m.id)
 
       relations = BatchesCollectionMigration.processed_objects
       assert relations.all?(ActiveRecord::Relation)
@@ -80,13 +80,13 @@ module BackgroundDataMigrations
     def test_collection_is_batch_enumerator_with_start
       m = create_migration("BadBatchesCollectionMigration")
       assert_raises_with_message(ArgumentError, /a batch enumerator with the "start" or "finish" options/) do
-        MigrationJob.perform_inline(m.id)
+        MigrationJob.perform_now(m.id)
       end
     end
 
     def test_collection_is_array
       m = create_migration("ArrayCollectionMigration")
-      MigrationJob.perform_inline(m.id)
+      MigrationJob.perform_now(m.id)
       assert_equal [1, 2, 3], ArrayCollectionMigration.processed_objects
 
       # #count is not set by default.
@@ -96,19 +96,19 @@ module BackgroundDataMigrations
     def test_collection_is_not_supported
       m = create_migration("BadCollectionMigration")
       assert_raises_with_message(ArgumentError, /#collection must be either an ActiveRecord::Relation/) do
-        MigrationJob.perform_inline(m.id)
+        MigrationJob.perform_now(m.id)
       end
     end
 
     def test_uses_count_method_if_present
       m = create_migration("WithCountMigration")
-      MigrationJob.perform_inline(m.id)
+      MigrationJob.perform_now(m.id)
       assert_equal 3, m.reload.tick_total
     end
 
     def test_stores_metadada_about_the_data_migration
       m = create_migration("ArrayCollectionMigration")
-      MigrationJob.perform_inline(m.id)
+      MigrationJob.perform_now(m.id)
 
       m.reload
       assert_equal 2, m.cursor.to_i
@@ -130,7 +130,7 @@ module BackgroundDataMigrations
       end
 
       m = create_migration("MakeAllDogsNice", connection_class_name: "ShardRecord", shard: "shard_two")
-      MigrationJob.perform_inline(m.id)
+      MigrationJob.perform_now(m.id)
 
       on_shard(:shard_one) do
         assert_not Dog.last.nice
@@ -147,7 +147,7 @@ module BackgroundDataMigrations
 
     def test_calls_data_migration_callbacks
       m = create_migration("WithCountMigration")
-      MigrationJob.perform_inline(m.id)
+      MigrationJob.perform_now(m.id)
 
       assert_equal 1, ArrayCollectionMigration.after_start_called
       assert_equal 3, ArrayCollectionMigration.around_process_called
@@ -171,7 +171,7 @@ module BackgroundDataMigrations
       m.cancel
       assert m.cancelling?
 
-      MigrationJob.perform_inline(m.id)
+      MigrationJob.perform_now(m.id)
       assert_equal 0, ArrayCollectionMigration.after_start_called
       assert_equal 0, ArrayCollectionMigration.around_process_called
       assert_equal 1, ArrayCollectionMigration.after_stop_called
@@ -191,7 +191,7 @@ module BackgroundDataMigrations
       m.pause
       assert m.pausing?
 
-      MigrationJob.perform_inline(m.id)
+      MigrationJob.perform_now(m.id)
 
       assert_equal 0, ArrayCollectionMigration.after_start_called
       assert_equal 0, ArrayCollectionMigration.around_process_called
@@ -221,7 +221,7 @@ module BackgroundDataMigrations
         assert_equal m, payload[:migration]
       end
 
-      MigrationJob.perform_inline(m.id)
+      MigrationJob.perform_now(m.id)
 
       assert start_called
       assert complete_called
@@ -249,9 +249,8 @@ module BackgroundDataMigrations
 
       # Do not wait before checking if needs to throttle.
       stub_const(MigrationJob, :THROTTLE_CHECK_INTERVAL, 0) do
-        MigrationJob.perform_inline(m.id)
-      rescue Sidekiq::Job::Interrupted
-        # In real world, sidekiq will reenqueue the job.
+        MigrationJob.perform_now(m.id)
+        # job-iteration handles reenqueueing internally without raising an exception
       end
 
       assert_equal 1, ArrayCollectionMigration.around_process_called

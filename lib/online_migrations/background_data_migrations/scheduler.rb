@@ -68,9 +68,9 @@ module OnlineMigrations
           job = OnlineMigrations.config.background_data_migrations.job
           job_class = job.constantize
 
-          jid = job_class.perform_async(migration.id)
-          if jid
-            migration.update!(status: :running, jid: jid)
+          job_instance = job_class.perform_later(migration.id)
+          if job_instance
+            migration.update!(status: :running, jid: job_instance.job_id)
           end
         end
     end

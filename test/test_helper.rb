@@ -8,7 +8,11 @@ require "minitest/autorun"
 # Required to be able to run single tests via command line.
 require "active_support/core_ext/string/strip"
 
-require "sidekiq/testing"
+require "active_job"
+ActiveJob::Base.queue_adapter = :test
+# Don't perform jobs immediately in tests - let tests control execution
+ActiveJob::Base.queue_adapter.perform_enqueued_at_jobs = false
+ActiveJob::Base.queue_adapter.perform_enqueued_jobs = false
 
 # Needed for `developer_env?`
 module Rails

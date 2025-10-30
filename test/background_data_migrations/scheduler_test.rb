@@ -23,10 +23,10 @@ module BackgroundDataMigrations
 
       run_scheduler
 
-      jobs = OnlineMigrations::BackgroundDataMigrations::MigrationJob.jobs
+      jobs = ActiveJob::Base.queue_adapter.enqueued_jobs.select { |j| j[:job] == OnlineMigrations::BackgroundDataMigrations::MigrationJob }
       assert_equal 1, jobs.size
       job = jobs.last
-      assert_equal [m.id], job["args"]
+      assert_equal [m.id], job[:args]
 
       m.reload
       assert m.running?
@@ -39,10 +39,10 @@ module BackgroundDataMigrations
 
       run_scheduler(shard: :shard_two)
 
-      jobs = OnlineMigrations::BackgroundDataMigrations::MigrationJob.jobs
+      jobs = ActiveJob::Base.queue_adapter.enqueued_jobs.select { |j| j[:job] == OnlineMigrations::BackgroundDataMigrations::MigrationJob }
       assert_equal 1, jobs.size
       job = jobs.last
-      assert_equal [m2.id], job["args"]
+      assert_equal [m2.id], job[:args]
 
       m2.reload
       assert m2.running?
@@ -60,13 +60,13 @@ module BackgroundDataMigrations
       scheduler = OnlineMigrations::BackgroundDataMigrations::Scheduler.new
       scheduler.run(concurrency: 1)
 
-      assert_equal 1, OnlineMigrations::BackgroundDataMigrations::MigrationJob.jobs.size
+      assert_equal 1, ActiveJob::Base.queue_adapter.enqueued_jobs.select { |j| j[:job] == OnlineMigrations::BackgroundDataMigrations::MigrationJob }.size
       assert m1.reload.running?
       assert m2.reload.enqueued?
 
       run_scheduler(concurrency: 2)
 
-      assert_equal 2, OnlineMigrations::BackgroundDataMigrations::MigrationJob.jobs.size
+      assert_equal 2, ActiveJob::Base.queue_adapter.enqueued_jobs.select { |j| j[:job] == OnlineMigrations::BackgroundDataMigrations::MigrationJob }.size
       assert m1.reload.running?
       assert m2.reload.running?
     end
@@ -79,7 +79,7 @@ module BackgroundDataMigrations
         m = create_migration(migration_name: "MakeAllNonAdmins")
         run_scheduler
 
-        assert_equal 1, CustomJob.jobs.size
+        assert_equal 1, ActiveJob::Base.queue_adapter.enqueued_jobs.select { |j| j[:job] == CustomJob }.size
         assert m.reload.running?
       end
     end

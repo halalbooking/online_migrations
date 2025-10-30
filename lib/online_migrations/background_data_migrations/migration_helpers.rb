@@ -389,7 +389,7 @@ module OnlineMigrations
 
           if Utils.run_background_migrations_inline? && !migration.succeeded?
             job = OnlineMigrations.config.background_data_migrations.job
-            job.constantize.perform_inline(migration.id)
+            job.constantize.perform_now(migration.id)
           end
         end
 

@@ -42,11 +42,16 @@ module OnlineMigrations
       #
       attr_accessor :error_handler
 
-      # The name of the sidekiq job to be used to perform data migrations.
+      # The name of the ActiveJob job to be used to perform data migrations.
       #
       # @return [String] defaults to "OnlineMigrations::BackgroundDataMigrations::MigrationJob"
       #
       attr_accessor :job
+
+      # The name of the queue to be used for background data migrations.
+      # @return [String, Symbol, nil] defaults to nil (uses :default queue)
+      #
+      attr_accessor :queue_name
 
       def initialize
         @migrations_path = "lib"
@@ -56,6 +61,7 @@ module OnlineMigrations
         @iteration_pause = 0.seconds
         @error_handler = ->(error, errored_migration) {}
         @job = "OnlineMigrations::BackgroundDataMigrations::MigrationJob"
+        @queue_name = nil
       end
     end
   end
